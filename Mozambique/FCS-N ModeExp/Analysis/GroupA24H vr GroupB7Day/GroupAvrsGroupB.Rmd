@@ -1,0 +1,750 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+#Comparing Group A -24Hr recall vrs. Group B (control group) 7 day recall
+#Downloading the data
+library(RODBC)
+
+channel <- odbcConnect("mvam", uid="mvamuser", pwd="P4r21$3L", believeNRows=FALSE)
+GroupB7Day<- sqlQuery(channel,
+                'select * from Obs_FCSNModExp')
+
+GroupB7Day <- GroupB7Day[which(GroupB7Day$Recall=="7Day"),]
+droplevels(GroupB7Day$Recall)
+
+#From CSV
+setwd('C://Users//silvia.passeri//Documents//GitHub//Mozambique//Data//mVAM//FCS-N_SMS//GroupA24H vr GroupB7Day')
+GroupA24H<-read.csv("FCSN_GroupA_24H_allRsp.csv", header =TRUE)           
+
+```
+
+GroupA24Hr 520 respondents
+GroupB 7Day 208
+
+```{r}
+#Creating the 7 day variable for each food item
+GroupA24H$Grain7D     <- rowSums(GroupA24H[,c("Grains1", "Grains2","Grains3","Grains4","Grains5","Grains6","Grains7")], na.rm=TRUE)
+GroupA24H$Roots7D     <-rowSums(GroupA24H[,c("Roots1", "Roots2","Roots3","Roots4","Roots5","Roots6","Roots7")], na.rm=TRUE)
+GroupA24H$Pulses7D    <-rowSums(GroupA24H[,c("Pulses1", "Pulses2","Pulses3","Pulses4","Pulses5","Pulses6","Pulses7")], na.rm=TRUE)
+GroupA24H$Nutseeds7D  <-rowSums(GroupA24H[,c("NutSeeds1","NutSeeds2","NutSeeds3","NutSeeds4","NutSeeds5","NutSeeds6","NutSeeds7")], na.rm=TRUE)
+GroupA24H$Dairy7D     <-rowSums(GroupA24H[,c("Dairy1","Dairy2","Dairy3","Dairy4","Dairy5","Dairy6","Dairy7")], na.rm=TRUE)
+GroupA24H$OrganMeat7D <-rowSums(GroupA24H[,c("OrganMeat1","OrganMeat2","OrganMeat3","OrganMeat4","OrganMeat5","OrganMeat6","OrganMeat7")], na.rm=TRUE)
+GroupA24H$MeatPoultry7D<- rowSums(GroupA24H[,c("MeatPoultry1","MeatPoultry2","MeatPoultry3","MeatPoultry4","MeatPoultry5","MeatPoultry6","MeatPoultry7")], na.rm=TRUE)
+GroupA24H$Fish7D      <- rowSums(GroupA24H[,c("Fish1","Fish2","Fish3","Fish4","Fish5","Fish6","Fish7")], na.rm=TRUE)
+GroupA24H$Eggs7D      <- rowSums(GroupA24H[,c("Eggs1","Eggs2","Eggs3","Eggs4","Eggs5","Eggs6","Eggs7")], na.rm=TRUE)
+GroupA24H$VitAVeg7D   <- rowSums(GroupA24H[,c("VitAVeg1","VitAVeg2","VitAVeg3","VitAVeg4","VitAVeg5","VitAVeg6","VitAVeg7")], na.rm=TRUE)
+GroupA24H$DGLVeg7D    <- rowSums(GroupA24H[,c("DGLVeg1","DGLVeg2","DGLVeg3","DGLVeg4","DGLVeg5","DGLVeg6","DGLVeg7")], na.rm=TRUE)
+GroupA24H$OtherVeg7D  <- rowSums(GroupA24H[,c("OtherVeg1","OtherVeg2","OtherVeg3","OtherVeg4","OtherVeg5","OtherVeg6","OtherVeg7")], na.rm=TRUE)
+GroupA24H$VitAFruits7D<-rowSums(GroupA24H[,c("VitAFruits1","VitAFruits2","VitAFruits3","VitAFruits4","VitAFruits5","VitAFruits6","VitAFruits7")], na.rm=TRUE)
+GroupA24H$OtherFruits7D <-rowSums(GroupA24H[,c("OtherFruits1","OtherFruits2","OtherFruits3","OtherFruits4","OtherFruits5","OtherFruits6","OtherFruits7")], na.rm=TRUE)
+GroupA24H$Fats7D      <- rowSums(GroupA24H[,c("Fats1","Fats2","Fats3","Fats4","Fats5","Fats6","Fats7")], na.rm=TRUE)
+GroupA24H$SugarsD     <- rowSums(GroupA24H[,c("Sugars1","Sugars2","Sugars3","Sugars4","Sugars5","Sugars6","Sugars7")], na.rm=TRUE)
+
+#Renaming the variables of the DB
+names(GroupB7Day)[names(GroupB7Day)=="Grains"] <- "Grain7D"       
+names(GroupB7Day)[names(GroupB7Day)=="Roots"] <- "Roots7D"         
+names(GroupB7Day)[names(GroupB7Day)=="Pulses"] <- "Pulses7D"   
+names(GroupB7Day)[names(GroupB7Day)=="NutSeeds"] <- "Nutseeds7D"   
+names(GroupB7Day)[names(GroupB7Day)=="Dairy"] <- "Dairy7D"   
+names(GroupB7Day)[names(GroupB7Day)=="OrganMeat"] <- "OrganMeat7D"   
+names(GroupB7Day)[names(GroupB7Day)=="MeatPoultry"] <- "MeatPoultry7D" 
+names(GroupB7Day)[names(GroupB7Day)=="Fish"] <- "Fish7D" 
+names(GroupB7Day)[names(GroupB7Day)=="Eggs"] <- "Eggs7D" 
+names(GroupB7Day)[names(GroupB7Day)=="VitAVeg"] <- "VitAVeg7D" 
+names(GroupB7Day)[names(GroupB7Day)=="DGLVeg"] <- "DGLVeg7D" 
+names(GroupB7Day)[names(GroupB7Day)=="OtherVeg"] <- "OtherVeg7D" 
+names(GroupB7Day)[names(GroupB7Day)=="VitAFruits"] <- "VitAFruits7D" 
+names(GroupB7Day)[names(GroupB7Day)=="OtherFruits"] <- "OtherFruits7D" 
+names(GroupB7Day)[names(GroupB7Day)=="Fats"] <- "Fats7D" 
+names(GroupB7Day)[names(GroupB7Day)=="Sugars"] <- "SugarsD" 
+
+#Calculating the FCS
+GroupA24H$FG_Staples<- rowSums(GroupA24H[,c("Grain7D", "Roots7D")],na.rm=TRUE)
+GroupA24H$FG_Pulses <-  rowSums(GroupA24H[,c("Pulses7D", "Nutseeds7D")],na.rm=TRUE)
+GroupA24H$FG_Milk   <-  GroupA24H$Dairy7D
+GroupA24H$FG_Meat   <-  rowSums(GroupA24H[,c("OrganMeat7D", "MeatPoultry7D","Fish7D","Eggs7D")],na.rm=TRUE)
+GroupA24H$FG_Veg    <-  rowSums(GroupA24H[,c("VitAVeg7D","DGLVeg7D","OtherVeg7D")],na.rm=TRUE)
+GroupA24H$FG_Fruit  <-  rowSums(GroupA24H[,c("VitAFruits7D","VitAFruits7D")],na.rm=TRUE)
+GroupA24H$FG_Oil    <-  GroupA24H$Fats7D
+GroupA24H$FG_Sugar  <-  GroupA24H$SugarsD
+
+GroupB7Day$FG_Staples<- rowSums(GroupB7Day[,c("Grain7D", "Roots7D")],na.rm=TRUE)
+GroupB7Day$FG_Pulses<-  rowSums(GroupB7Day[,c("Pulses7D", "Nutseeds7D")],na.rm=TRUE)
+GroupB7Day$FG_Milk<-    GroupB7Day$Dairy7D
+GroupB7Day$FG_Milk<-as.numeric(GroupB7Day$Dairy7D)
+GroupB7Day$FG_Meat<-    rowSums(GroupB7Day[,c("OrganMeat7D", "MeatPoultry7D","Fish7D","Eggs7D")],na.rm=TRUE)
+GroupB7Day$FG_Veg<-     rowSums(GroupB7Day[,c("VitAVeg7D","DGLVeg7D","OtherVeg7D")],na.rm=TRUE)
+GroupB7Day$FG_Fruit<-   rowSums(GroupB7Day[,c("VitAFruits7D","VitAFruits7D")],na.rm=TRUE)
+GroupB7Day$FG_Oil<-     GroupB7Day$Fats7D
+GroupB7Day$FG_Oil<-as.numeric(GroupB7Day$Fats7D)
+GroupB7Day$FG_Sugar<-   GroupB7Day$SugarsD
+GroupB7Day$FG_Sugar<-as.numeric(GroupB7Day$SugarsD)
+str(GroupB7Day)
+
+GroupA24H$FG_Staples<- ifelse(GroupA24H$FG_Staples>7,7,GroupA24H$FG_Staples)
+GroupA24H$FG_Pulses<-  ifelse(GroupA24H$FG_Pulses>7,7,GroupA24H$FG_Pulses)
+GroupA24H$FG_Milk<-    ifelse(GroupA24H$FG_Milk>7,7,GroupA24H$FG_Milk)
+GroupA24H$FG_Meat<-    ifelse(GroupA24H$FG_Meat>7,7,GroupA24H$FG_Meat)
+GroupA24H$FG_Veg<-     ifelse(GroupA24H$FG_Veg>7,7,GroupA24H$FG_Veg)
+GroupA24H$FG_Fruit<-   ifelse(GroupA24H$FG_Fruit>7,7,GroupA24H$FG_Fruit)
+
+GroupB7Day$FG_Staples<- ifelse(GroupB7Day$FG_Staples>7,7,GroupB7Day$FG_Staples)
+GroupB7Day$FG_Pulses<-  ifelse(GroupB7Day$FG_Pulses>7,7,GroupB7Day$FG_Pulses)
+GroupB7Day$FG_Milk  <-  ifelse(GroupB7Day$FG_Milk>7,7,GroupB7Day$FG_Milk)
+GroupB7Day$FG_Meat  <-  ifelse(GroupB7Day$FG_Meat>7,7,GroupB7Day$FG_Meat)
+GroupB7Day$FG_Veg   <-  ifelse(GroupB7Day$FG_Veg>7,7,GroupB7Day$FG_Veg)
+GroupB7Day$FG_Fruit <-  ifelse(GroupB7Day$FG_Fruit>7,7,GroupB7Day$FG_Fruit)
+
+
+GroupA24H$FCS<-GroupA24H$FG_Staples*2+GroupA24H$FG_Pulses*3+GroupA24H$FG_Milk*4+GroupA24H$FG_Meat*4+GroupA24H$FG_Veg+
+                  GroupA24H$FG_Fruit+GroupA24H$FG_Oil*0.5+GroupA24H$FG_Sugar*0.5
+GroupA24H$FCG<-ifelse(GroupA24H$FCS<=21,1, ifelse((GroupA24H$FCS>35),3,2))
+
+GroupB7Day$FCS<-GroupB7Day$FG_Staples*2+GroupB7Day$FG_Pulses*3+GroupB7Day$FG_Milk*4+GroupB7Day$FG_Meat*4+GroupB7Day$FG_Veg+
+                  GroupB7Day$FG_Fruit+GroupB7Day$FG_Oil*0.5+GroupB7Day$FG_Sugar*0.5
+
+GroupB7Day$FCG<-ifelse(GroupB7Day$FCS<=21,1, ifelse((GroupB7Day$FCS>35),3,2))
+
+#########Performing FCSN with dataset GroupA24H
+GroupA24H$VitaminARichFood<- rowSums(GroupA24H[,c("Dairy7D","OrganMeat7D","Eggs7D","DGLVeg7D","VitAFruits7D","VitAVeg7D")], na.rm=TRUE)
+GroupA24H$ProteinRichFood<-  rowSums(GroupA24H[,c("Pulses7D","Dairy7D","MeatPoultry7D","OrganMeat7D","Fish7D","Eggs7D")], na.rm=TRUE)
+GroupA24H$HemIronRichFood<-  rowSums(GroupA24H[,c("OrganMeat7D","MeatPoultry7D","Fish7D")], na.rm=TRUE)
+
+
+GroupB7Day$VitaminARichFood<- rowSums(GroupB7Day[,c("Dairy7D","OrganMeat7D","Eggs7D","DGLVeg7D","VitAFruits7D","VitAVeg7D")], na.rm=TRUE)
+GroupB7Day$ProteinRichFood<-  rowSums(GroupB7Day[,c("Pulses7D","Dairy7D","MeatPoultry7D","OrganMeat7D","Fish7D","Eggs7D")], na.rm=TRUE)
+GroupB7Day$HemIronRichFood<-  rowSums(GroupB7Day[,c("OrganMeat7D","MeatPoultry7D","Fish7D")], na.rm=TRUE)
+
+GroupA24H$FG_VitACat<-ifelse(GroupA24H$VitaminARichFood==0,1,ifelse((GroupA24H$VitaminARichFood==1)|
+                                              (GroupA24H$VitaminARichFood==2)|(GroupA24H$VitaminARichFood==3)|
+                                              (GroupA24H$VitaminARichFood==4)|(GroupA24H$VitaminARichFood==5)|
+                                              (GroupA24H$VitaminARichFood==6),2,3))
+
+
+GroupA24H$FG_ProteinCat<-ifelse(GroupA24H$ProteinRichFood==0,1,ifelse((GroupA24H$ProteinRichFood==1)|
+                                              (GroupA24H$ProteinRichFood==2)|(GroupA24H$ProteinRichFood==3)|
+                                              (GroupA24H$ProteinRichFood==4)|(GroupA24H$ProteinRichFood==5)|
+                                              (GroupA24H$ProteinRichFood==6),2,3))
+
+GroupA24H$FG_HIronCat<-ifelse(GroupA24H$HemIronRichFood==0,1,ifelse((GroupA24H$HemIronRichFood==1)|
+                                              (GroupA24H$HemIronRichFood==2)|(GroupA24H$HemIronRichFood==3)|
+                                              (GroupA24H$HemIronRichFood==4)|(GroupA24H$HemIronRichFood==5)|
+                                              (GroupA24H$HemIronRichFood==6),2,3))
+
+GroupA24H$FG_VitACat   <- as.factor(GroupA24H$FG_VitACat)
+GroupA24H$FG_ProteinCat<- as.factor(GroupA24H$FG_ProteinCat)
+GroupA24H$FG_HIronCat  <- as.factor(GroupA24H$FG_HIronCat)
+str(GroupB7Day)
+GroupB7Day$FG_VitACat<-ifelse(GroupB7Day$VitaminARichFood==0,1,ifelse((GroupB7Day$VitaminARichFood==1)|
+                                              (GroupB7Day$VitaminARichFood==2)|(GroupB7Day$VitaminARichFood==3)|
+                                              (GroupB7Day$VitaminARichFood==4)|(GroupB7Day$VitaminARichFood==5)|
+                                              (GroupB7Day$VitaminARichFood==6),2,3))
+
+
+GroupB7Day$FG_ProteinCat<-ifelse(GroupB7Day$ProteinRichFood==0,1,ifelse((GroupB7Day$ProteinRichFood==1)|
+                                              (GroupB7Day$ProteinRichFood==2)|(GroupB7Day$ProteinRichFood==3)|
+                                              (GroupB7Day$ProteinRichFood==4)|(GroupB7Day$ProteinRichFood==5)|
+                                              (GroupB7Day$ProteinRichFood==6),2,3))
+
+GroupB7Day$FG_HIronCat<-ifelse(GroupB7Day$HemIronRichFood==0,1,ifelse((GroupB7Day$HemIronRichFood==1)|
+                                              (GroupB7Day$HemIronRichFood==2)|(GroupB7Day$HemIronRichFood==3)|
+                                              (GroupB7Day$HemIronRichFood==4)|(GroupB7Day$HemIronRichFood==5)|
+                                              (GroupB7Day$HemIronRichFood==6),2,3))
+
+GroupB7Day$FG_VitACat   <- as.factor(GroupB7Day$FG_VitACat)
+GroupB7Day$FG_ProteinCat<- as.factor(GroupB7Day$FG_ProteinCat)
+GroupB7Day$FG_HIronCat  <- as.factor(GroupB7Day$FG_HIronCat)
+
+levels(GroupA24H$FG_VitACat)<-c("0 times (Never Consumed)","1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(GroupA24H$FG_ProteinCat)<-c("0 times (Never Consumed)","1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(GroupA24H$FG_HIronCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+
+
+levels(GroupB7Day$FG_VitACat)<-c("1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(GroupB7Day$FG_ProteinCat)<-c("0 times (Never Consumed)","1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(GroupB7Day$FG_HIronCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+
+end.rcode-->
+
+#Food Consumption Score Nutrition analysis 
+1) Percentage of respondent by ADM1, Toilet Type, RoofType and Gender
+
+<!--begin.rcode
+# Histogram for % of resp by district
+plot1 <- ggplot() + geom_bar(data=GroupA24H, aes(x=ADM1_NAME, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 70) +
+          labs(title = "Group A 24 Hr recall") +
+          ylab("Percentage") +
+          xlab("District")
+
+plot2 <- ggplot() + geom_bar(data=GroupB7Day, aes(x=ADM1_NAME, y=((..count..)/sum(..count..))*100))+
+         ylim(0, 70) +
+         labs(title = "Group B 7 Day recall") +       
+         ylab("Percentage") +
+         xlab("District")
+
+plo <- grid.arrange(plot1, plot2, ncol=2)
+
+# Histogram for % of resp by Toilet Type
+#Changing the level of the Toilet and Roof Type
+GroupA24H$RoofType<-  factor(GroupA24H$RoofType, levels=c("Metal", "Asbestos", "Concrete","Plastic","Thatch","Other"))
+GroupA24H$ToiletType<-factor(GroupA24H$ToiletType, levels=c("VIP", "Improved", "Flush","Unimproved","Bush"))
+
+GroupB7Day$RoofType<-  factor(GroupB7Day$RoofType, levels=c("Metal", "Asbestos", "Concrete","Plastic","Thatch","Other"))
+GroupB7Day$ToiletType<-factor(GroupB7Day$ToiletType, levels=c("VIP", "Improved", "Flush","Unimproved","Bush"))
+
+#ToiletType
+plot1.Toilet <- ggplot() + geom_bar(data=GroupA24H, aes(x=ToiletType, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 40) +
+          labs(title = "Group A 24 Hr recall") +
+          ylab("Percentage") +
+          xlab("District")
+
+plot2.Toilet <- ggplot() + geom_bar(data=GroupB7Day, aes(x=ToiletType, y=((..count..)/sum(..count..))*100))+
+         ylim(0, 40) +
+         labs(title = "Group B 7 Day recall") +       
+         ylab("Percentage") +
+         xlab("District")
+
+plo.Toilet <- grid.arrange(plot1.Toilet, plot2.Toilet, ncol=2)
+
+#RooFType
+plot1.Roof <- ggplot() + geom_bar(data=GroupA24H, aes(x=RoofType, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall") +
+          ylab("Percentage") +
+          xlab("District")
+
+plot2.Roof  <- ggplot() + geom_bar(data=GroupB7Day, aes(x=RoofType, y=((..count..)/sum(..count..))*100))+
+         ylim(0, 50) +
+         labs(title = "Group B 7 Day recall") +       
+         ylab("Percentage") +
+         xlab("District")
+
+plo.Roof  <- grid.arrange(plot1.Roof , plot2.Roof , ncol=2)
+
+#Some statistics
+perc.adm<-function(ff){
+t<-table(ff)
+tot<-sum(table(ff))
+perc<-(t/tot)*100
+return(perc)
+}
+perc.adm(GroupA24H$ADM1_NAME)
+perc.adm(GroupB7Day$ADM1_NAME)
+
+perc.adm(GroupA24H$ToiletType)
+perc.adm(GroupB7Day$ToiletType)
+
+perc.adm(GroupA24H$RoofType)
+perc.adm(GroupB7Day$RoofType)
+
+perc.adm(GroupA24H$Gender)
+perc.adm(GroupB7Day$Gender)
+
+mean(GroupA24H$Age)
+mean(GroupB7Day$Age)
+end.rcode-->
+
+Checking the differences among the sample demographics
+<!--begin.rcode
+GroupA24H_sub<-subset(GroupA24H, select=c("RspID","ADM1_NAME","Gender","Age","ToiletType","RoofType","FCS","FCG","FG_VitACat","FG_ProteinCat","FG_HIronCat"))
+GroupA24H_sub$Group<-"24Hr"
+
+GroupB7Day_sub<-subset(GroupB7Day, select=c("RspID","ADM1_NAME","Gender","Age","ToiletType","RoofType","FCS","FCG","FG_VitACat","FG_ProteinCat","FG_HIronCat"))
+GroupB7Day_sub$Group<-"7Day"
+
+merged<-rbind(GroupA24H_sub,GroupB7Day_sub)
+str(merged)
+merged$Age<-as.numeric(merged$Age)
+merged$Group<-as.factor(merged$Group)
+
+
+#Test for ADM1
+test.Tete<- function(data){
+  Tete_YN<-ifelse((data$ADM1_NAME=="Tete") ,0,1)
+  ADM<-table(data$Group,Tete_YN)
+  test<-prop.test(ADM, correct=FALSE)
+  
+  return(test)
+}
+test.Tete(merged)
+
+#Test for Gender
+test.Gender<- function(data){
+  Gender_YN<-ifelse((data$Gender=="M") ,0,1)
+  Gender<-table(data$Group,Gender_YN)
+  test<-prop.test(Gender, correct=FALSE)
+  
+  return(test)
+}
+test.Gender(merged)
+
+#Test for ToiletType
+test.Toilet<- function(data){
+  Toilet_YN<-ifelse((data$ToiletType=="Bush") ,0,1)
+  Toilet<-table(data$Group,Toilet_YN)
+  test<-prop.test(Toilet, correct=FALSE)
+  
+  return(test)
+}
+test.Toilet(merged)
+
+#Test for RoofType
+test.Roof<- function(data){
+  Roof_YN<-ifelse((data$RoofType=="Other") ,0,1)
+  Roof<-table(data$Group,Roof_YN)
+  test<-prop.test(Roof, correct=FALSE)
+  
+  return(test)
+}
+test.Roof(merged)
+
+table(GroupA24H$ADM1_NAME,GroupA24H$ToiletType)
+table(GroupB7Day$ADM1_NAME,GroupB7Day$ToiletType)
+table(merged$ADM1_NAME,merged$ToiletType)
+
+t.test(GroupB7Day$Age,GroupA24H$Age)
+
+end.rcode-->
+
+<!--begin.rcode
+```{r}
+#Dataset created fr computing the test
+mergedTete <- merged[which(merged$ADM1_NAME=='Tete'),]
+mergedZambezia <- merged[which(merged$ADM1_NAME=='Zambezia'),]
+
+
+#FCSN VitA, Protein and Iron vs ADM1
+freq.perc.FG(GroupA24H$FG_VitACat,GroupA24H$ADM1_NAME)
+freq.perc.FG(GroupB7Day$FG_VitACat,GroupB7Day$ADM1_NAME)
+
+test.VitATete0(mergedTete)
+test.VitATete0(mergedZambezia)
+
+
+test.VitATete1_6(mergedTete)
+test.VitATete1_6(mergedZambezia)
+
+
+test.VitATete7(mergedTete)
+test.VitATete7(mergedZambezia)
+
+#Test for ADM1 ProteinRichFood
+freq.perc.FG(GroupA24H$FG_ProteinCat,GroupA24H$ADM1_NAME)
+freq.perc.FG(GroupB7Day$FG_ProteinCat,GroupB7Day$ADM1_NAME)
+
+
+test.ProtTete0(mergedTete)
+test.ProtTete0(mergedZambezia)
+
+
+test.ProtTete1_6(mergedTete)
+test.ProtTete1_6(mergedZambezia)
+
+test.ProtTete7(mergedTete)
+test.ProtTete7(mergedZambezia)
+
+#Test for ADM1 IronRichFood
+
+freq.perc.FG(GroupA24H$FG_HIronCat,GroupA24H$ADM1_NAME)
+freq.perc.FG(GroupB7Day$FG_HIronCat,GroupB7Day$ADM1_NAME)
+
+
+test.IronTete0(mergedTete)
+test.IronTete0(mergedZambezia)
+
+test.IronTete1_6(mergedTete)
+test.IronTete1_6(mergedZambezia)
+
+
+test.IronTete7(mergedTete)
+test.IronTete7(mergedZambezia)
+
+
+
+
+
+#Dataset created fr computing the test
+mergedConcrete  <- merged[which(merged$RoofType=='Concrete'),]
+mergedAsbestos  <- merged[which(merged$RoofType=='Asbestos'),]
+mergedMetal     <- merged[which(merged$RoofType=='Metal'),]
+mergedPlastic   <- merged[which(merged$RoofType=='Plastic'),]
+mergedThatch    <- merged[which(merged$RoofType=='Thatch'),]
+mergedOther     <- merged[which(merged$RoofType=='Other'),]
+
+#FCSN VitA, Protein and Iron vs ToiletType
+freq.perc.FG(GroupA24H$FG_VitACat,GroupA24H$RoofType)
+freq.perc.FG(GroupB7Day$FG_VitACat,GroupB7Day$RoofType)
+
+
+#Test for RoofType VitA
+test.VitA0(mergedConcrete)
+test.VitA0(mergedAsbestos)
+test.VitA0(mergedMetal)
+test.VitA0(mergedPlastic)
+test.VitA0(mergedThatch)
+test.VitA0(mergedOther)
+
+test.VitA1_6(mergedConcrete)
+test.VitA1_6(mergedAsbestos)
+test.VitA1_6(mergedMetal)
+test.VitA1_6(mergedPlastic)
+test.VitA1_6(mergedThatch)
+test.VitA1_6(mergedOther)
+
+test.VitA7(mergedConcrete)
+test.VitA7(mergedAsbestos)
+test.VitA7(mergedMetal)
+test.VitA7(mergedPlastic)
+test.VitA7(mergedThatch)
+test.VitA7(mergedOther)
+
+#Test for ADM1 ProteinRichFood
+freq.perc.FG(GroupA24H$FG_ProteinCat,GroupA24H$RoofType)
+freq.perc.FG(GroupB7Day$FG_ProteinCat,GroupB7Day$RoofType)
+
+test.Prot0(mergedConcrete)
+test.Prot0(mergedAsbestos)
+test.Prot0(mergedMetal)
+test.Prot0(mergedPlastic)
+test.Prot0(mergedThatch)
+test.Prot0(mergedOther)
+
+test.Prot1_6(mergedConcrete)
+test.Prot1_6(mergedAsbestos)
+test.Prot1_6(mergedMetal)
+test.Prot1_6(mergedPlastic)
+test.Prot1_6(mergedThatch)
+test.Prot1_6(mergedOther)
+
+test.Prot7(mergedConcrete)
+test.Prot7(mergedAsbestos)
+test.Prot7(mergedMetal)
+test.Prot7(mergedPlastic)
+test.Prot7(mergedThatch)
+test.Prot7(mergedOther)
+
+#Test for ADM1 IronRichFood
+freq.perc.FG(GroupA24H$FG_HIronCat,GroupA24H$RoofType)
+freq.perc.FG(GroupB7Day$FG_HIronCat,GroupB7Day$RoofType)
+
+
+test.Iron0(mergedConcrete)
+test.Iron0(mergedAsbestos)
+test.Iron0(mergedMetal)
+test.Iron0(mergedPlastic)
+test.Iron0(mergedThatch)
+test.Iron0(mergedOther)
+
+test.Iron1_6(mergedConcrete)
+test.Iron1_6(mergedAsbestos)
+test.Iron1_6(mergedMetal)
+test.Iron1_6(mergedPlastic)
+test.Iron1_6(mergedThatch)
+test.Iron1_6(mergedOther)
+
+test.Iron7(mergedConcrete)
+test.Iron7(mergedAsbestos)
+test.Iron7(mergedMetal)
+test.Iron7(mergedPlastic)
+test.Iron7(mergedThatch)
+test.Iron7(mergedOther)
+
+
+
+
+#FCSN VitA, Protein and Iron vs RoofType
+#Dataset created fr computing the test
+mergedVIP  <-      merged[which(merged$ToiletType=='VIP'),]
+mergedImproved  <- merged[which(merged$ToiletType=='Improved'),]
+mergedFlush     <- merged[which(merged$ToiletType=='Flush'),]
+mergedUnimproved<- merged[which(merged$ToiletType=='Unimproved'),]
+mergedBush   <-    merged[which(merged$ToiletType=='Bush'),]
+
+
+#Test for ToiletType VitA
+
+freq.perc.FG(GroupA24H$FG_VitACat,GroupA24H$ToiletType)
+freq.perc.FG(GroupB7Day$FG_VitACat,GroupB7Day$ToiletType)
+
+test.VitAToilet0(mergedVIP)
+test.VitAToilet0(mergedImproved)
+test.VitAToilet0(mergedFlush)
+test.VitAToilet0(mergedUnimproved)
+test.VitAToilet0(mergedBush)
+
+
+test.VitAToilet1_6(mergedVIP)
+test.VitAToilet1_6(mergedImproved)
+test.VitAToilet1_6(mergedFlush)
+test.VitAToilet1_6(mergedUnimproved)
+test.VitAToilet1_6(mergedBush)
+
+test.VitAToilet7(mergedVIP)
+test.VitAToilet7(mergedImproved)
+test.VitAToilet7(mergedFlush)
+test.VitAToilet7(mergedUnimproved)
+test.VitAToilet7(mergedBush)
+
+
+#Test for Toilet ProteinRichFood
+
+freq.perc.FG(GroupA24H$FG_ProteinCat,GroupA24H$ToiletType)
+freq.perc.FG(GroupB7Day$FG_ProteinCat,GroupB7Day$ToiletType)
+
+test.ProtToilet0(mergedVIP)
+test.ProtToilet0(mergedImproved)
+test.ProtToilet0(mergedFlush)
+test.ProtToilet0(mergedUnimproved)
+test.ProtToilet0(mergedBush)
+
+
+test.ProtToilet1_6(mergedVIP)
+test.ProtToilet1_6(mergedImproved)
+test.ProtToilet1_6(mergedFlush)
+test.ProtToilet1_6(mergedUnimproved)
+test.ProtToilet1_6(mergedBush)
+
+
+test.ProtToilet7(mergedVIP)
+test.ProtToilet7(mergedImproved)
+test.ProtToilet7(mergedFlush)
+test.ProtToilet7(mergedUnimproved)
+test.ProtToilet7(mergedBush)
+
+#Test for toilet IronRichFood
+freq.perc.FG(GroupA24H$FG_HIronCat,GroupA24H$ToiletType)
+freq.perc.FG(GroupB7Day$FG_HIronCat,GroupB7Day$ToiletType)
+
+test.IronToilet0(mergedVIP)
+test.IronToilet0(mergedImproved)
+test.IronToilet0(mergedFlush)
+test.IronToilet0(mergedUnimproved)
+test.IronToilet0(mergedBush)
+
+
+test.IronToilet1_6(mergedVIP)
+test.IronToilet1_6(mergedImproved)
+test.IronToilet1_6(mergedFlush)
+test.IronToilet1_6(mergedUnimproved)
+test.IronToilet1_6(mergedBush)
+
+
+test.IronToilet7(mergedVIP)
+test.IronToilet7(mergedImproved)
+test.IronToilet7(mergedFlush)
+test.IronToilet7(mergedUnimproved)
+test.IronToilet7(mergedBush)
+str(mergedVIP)
+end.rcode-->
+
+<!--begin.rcode
+#Mosaic plot - toilet Type
+levels(GroupA24H$FG_VitACat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupA<- mosaicplot(xtabs(~ ToiletType+FG_VitACat,data=GroupA24H),col=c("orange","red","purple"),xlab="ToiletType",las=1,main="GroupA 24Hr")
+
+#levels(GroupB7Day$FG_VitACat)<-c("Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupB<- mosaicplot(xtabs(~ ToiletType+FG_VitACat,data=GroupB7Day),col=c("red","purple"),xlab="ToiletType",las=1,main="GroupB 7Days")
+
+#Protein
+levels(GroupA24H$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ToiletType+FG_ProteinCat,data=GroupA24H),col=c("orange","red","purple"),xlab="ToiletType",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ToiletType+FG_ProteinCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="ToiletType",las=1,main="GroupB 7Days")
+
+#Iron
+levels(GroupA24H$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ToiletType+FG_HIronCat,data=GroupA24H),col=c("orange","red","purple"),xlab="ToiletType",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ToiletType+FG_HIronCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="ToiletType",las=1,main="GroupB 7Days")
+
+
+
+#Mosaic plot - Roof Type
+levels(GroupA24H$FG_VitACat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupA<- mosaicplot(xtabs(~ RoofType+FG_VitACat,data=GroupA24H),col=c("orange","red","purple"),xlab="RoofType",las=1,main="GroupA 24Hr")
+
+#levels(GroupB7Day$FG_VitACat)<-c("Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupB<- mosaicplot(xtabs(~ RoofType+FG_VitACat,data=GroupB7Day),col=c("red","purple"),xlab="RoofType",las=1,main="GroupB 7Days")
+
+#Protein
+levels(GroupA24H$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ RoofType+FG_ProteinCat,data=GroupA24H),col=c("orange","red","purple"),xlab="RoofType",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ RoofType+FG_ProteinCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="RoofType",las=1,main="GroupB 7Days")
+
+#Iron
+levels(GroupA24H$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ RoofType+FG_HIronCat,data=GroupA24H),col=c("orange","red","purple"),xlab="RoofType",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ RoofType+FG_HIronCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="RoofType",las=1,main="GroupB 7Days")
+
+
+
+#Mosaic plot - District
+levels(GroupA24H$FG_VitACat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupA<- mosaicplot(xtabs(~ ADM1_NAME+FG_VitACat,data=GroupA24H),col=c("orange","red","purple"),xlab="District",las=1,main="GroupA 24Hr")
+
+#levels(GroupB7Day$FG_VitACat)<-c("Consumed sometimes","Consumed at least daily")
+mos.VitA.GroupB<- mosaicplot(xtabs(~ ADM1_NAME+FG_VitACat,data=GroupB7Day),col=c("red","purple"),xlab="District",las=1,main="GroupB 7Days")
+
+#Protein
+levels(GroupA24H$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ADM1_NAME+FG_ProteinCat,data=GroupA24H),col=c("orange","red","purple"),xlab="District",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_ProteinCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ADM1_NAME+FG_ProteinCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="District",las=1,main="GroupB 7Days")
+
+#Iron
+levels(GroupA24H$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ADM1_NAME+FG_HIronCat,data=GroupA24H),col=c("orange","red","purple"),xlab="District",las=1,main="GroupA 24Hr")
+
+levels(GroupB7Day$FG_HIronCat)<-c("Never Consumed","Consumed sometimes","Consumed at least daily")
+mosaicplot(xtabs(~ ADM1_NAME+FG_HIronCat,data=GroupB7Day),col=c("orange","red","purple"),xlab="District",las=1,main="GroupB 7Days")
+
+end.rcode-->
+
+<!--begin.rcode
+freq.perc.FG(GroupA24H$FCG,GroupA24H$FG_VitACat)
+
+freq.perc.FG(GroupB7Day$FCG,GroupB7Day$FG_VitACat)
+
+
+freq.perc.FG(GroupA24H$FCG,GroupA24H$FG_ProteinCat)
+freq.perc.FG(GroupB7Day$FCG,GroupB7Day$FG_ProteinCat)
+
+
+freq.perc.FG(GroupA24H$FCG,GroupA24H$FG_HIronCat)
+freq.perc.FG(GroupB7Day$FCG,GroupB7Day$FG_HIronCat)
+
+end.rcode-->
+
+<!--begin.rcode
+#Some graphs
+install.packages("Rcpp")
+install.packages("grid")
+install.packages("gridExtra")
+library(Rcpp)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+plot1.Eggs <- ggplot() + geom_bar(data=GroupA24H, aes(x=Eggs7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Eggs") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Eggs <- ggplot() + geom_bar(data=GroupB7Day, aes(x=Eggs7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Eggs") +
+          ylab("Percentage") +
+          xlab("Days")
+
+
+
+plot1.Organ <- ggplot() + geom_bar(data=GroupA24H, aes(x=OrganMeat7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Organ Meat") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Organ <- ggplot() + geom_bar(data=GroupB7Day, aes(x=OrganMeat7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Organ Meat") +
+          ylab("Percentage") +
+          xlab("Days")
+
+
+plot1.Flesh <- ggplot() + geom_bar(data=GroupA24H, aes(x=MeatPoultry7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Flesh Meat") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Flesh <- ggplot() + geom_bar(data=GroupB7Day, aes(x=MeatPoultry7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Flesh Meat") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot1.Fish <- ggplot() + geom_bar(data=GroupA24H, aes(x=Fish7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Fish") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Fish<- ggplot() + geom_bar(data=GroupB7Day, aes(x=Fish7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Fish") +
+          ylab("Percentage") +
+          xlab("Days")
+plot1.Pulses <- ggplot() + geom_bar(data=GroupA24H, aes(x=Pulses7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Pulses") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Pulses<- ggplot() + geom_bar(data=GroupB7Day, aes(x=Pulses7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Pulses") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot1.Dairy <- ggplot() + geom_bar(data=GroupA24H, aes(x=Dairy7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Dairy") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Dairy <- ggplot() + geom_bar(data=GroupB7Day, aes(x=Dairy7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Dairy") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot1.VitAVeg <- ggplot() + geom_bar(data=GroupA24H, aes(x=VitAVeg7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Orange Veg") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.VitAVeg <- ggplot() + geom_bar(data=GroupB7Day, aes(x=VitAVeg7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Orange Veg") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot1.DGLVeg <- ggplot() + geom_bar(data=GroupA24H, aes(x=DGLVeg7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Dark green Veg") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.DGLVeg <- ggplot() + geom_bar(data=GroupB7Day, aes(x=DGLVeg7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Dark green Veg") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot1.Fruits <- ggplot() + geom_bar(data=GroupA24H, aes(x=VitAFruits7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group A 24 Hr recall - Fruits") +
+          ylab("Percentage") +
+          xlab("Days")
+plot2.Fruits <- ggplot() + geom_bar(data=GroupB7Day, aes(x=VitAFruits7D, y=((..count..)/sum(..count..))*100))+
+          ylim(0, 50) +
+          labs(title = "Group B 7 Days recall - Fruits") +
+          ylab("Percentage") +
+          xlab("Days")
+
+plot<-grid.arrange(plot1.Eggs , plot2.Eggs, plot1.Organ, plot2.Organ,ncol=2,nrow=2)
+plot1<-grid.arrange(plot1.Flesh, plot2.Flesh, plot1.Fish ,plot2.Fish ,ncol=2,nrow=2)
+plot2<-grid.arrange(plot1.Pulses, plot2.Pulses, plot1.Dairy,plot2.Dairy ,ncol=2,nrow=2)
+plot3<-grid.arrange(plot1.VitAVeg, plot2.VitAVeg, plot1.DGLVeg ,plot2.DGLVeg  ,ncol=2,nrow=2)
+plot4<-grid.arrange(plot1.Fruits, plot2.Fruits ,ncol=2,nrow=2)
+
+```
