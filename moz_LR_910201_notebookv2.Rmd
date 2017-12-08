@@ -1,0 +1,467 @@
+---
+title: "HDDS F2F vs mVAM"
+output: html_notebook
+---
+
+![Flag of Mozambique](C:/Users/lorenzo.riches/Desktop/mozambique/analysis/Flag_of_Mozambique.png){width=350px}
+
+Mozambique analysis, comparing the F2F and the mVAM interviews. Libraries used:
+```{r}
+library(RODBC)
+library(openxlsx)
+library(binom)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(wordcloud)
+source('utils.R')
+```
+### DATA
+Get the mVAM data from the SQL db.
+```{r}
+dbhandle <- odbcDriverConnect('driver={SQL Server};server=wfpromsqlp02;database=mvam;uid=mvamuser;pwd=P4r21$3L')
+mVAM <- sqlQuery(dbhandle, "SELECT * FROM [mvam].[dbo].[Obs_Mozambique] where SvyDate = '2017-06-01 00:00:00.000' and UrbanRural = 'R'", stringsAsFactors = FALSE)
+```
+and the F2F data from excel.
+```{r}
+F2F <- read.xlsx('Moz VAC Jul17_Clean.xlsx', sheet = 2)
+F2F$HDDS = as.integer(F2F$HDDS)
+F2F$HDDS = as.numeric(F2F$HDDS)
+```
+First off is the data loaded ok? let's check how many surveys we have between the two periods:
+```{r}
+cat(" Surveys taken in F2F:", nrow(F2F),"\n", "Surveys taken in mVAM:", nrow(mVAM))
+```
+Because mVAM was only collected in the provinces of Gaza and Inhambane, we filter the F2F survey for those 2.
+```{r}
+F2F <- F2F[F2F$Adm1_Name  == "Inhambane" | F2F$Adm1_Name == "Gaza",]
+cat(" Surveys in F2F with only two provinces:", nrow(F2F))
+```
+***
+### HDDS scores
+Let's compare the HDDS scores. We can plot the distributions form the two plots for a qualitative view.
+
+```{r fig.width=12,fig.height=8}
+# density plot of HDDS between F2F and mVAM
+plot1 <- ggplot() + geom_bar(data=F2F, aes(x=HDDS), fill="lightgrey") +
+                    geom_vline(xintercept = median(F2F$HDDS), color="blue", linetype="dashed") + theme_bw() + ggtitle("F2F")
+plot2 <- ggplot() + geom_bar(data=mVAM, aes(x=HDDS), fill="lightgrey") +
+                    geom_vline(xintercept = median(mVAM$HDDS), color="blue", linetype="dashed") + theme_bw() + ggtitle("CATI")
+plo <- grid.arrange(plot1, plot2, ncol=2)
+```
+```{r fig.width=10,fig.height=6}
+# and density plot
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank())
+}
+
+df <- rbind(data.frame(F2F['HDDS'], MODE='F2F'), data.frame(mVAM['HDDS'],MODE='CATI'))
+
+plt <-  ggplot(df, aes(HDDS, fill=MODE, y = (..count..))) +
+        geom_bar(position=position_dodge(), alpha=0.7) + 
+        scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+        scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) + custo_theme() + scale_fill_brewer(palette="Set2")  +         geom_vline(aes(xintercept=mean(F2F$HDDS)), color="#94D4C0", linetype="dashed", size=1) +
+        geom_vline(aes(xintercept=mean(mVAM$HDDS)), color="#FDAF91", linetype="dashed", size=1)
+  
+plt
+  #geom_density(aes(x=as.integer(HDDS)), color='blue', data=mVAM) +
+  #scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10))
+#/sum(..count..), limits = c(0, 0.17)
+```
+
+And here for a quantitative look.
+```{r}
+cat('*** HDDS scores distribution ***\n')
+get_stats_numerical(F2F, 'HDDS', mVAM, 'HDDS')
+```
+
+We can see that the HDDS index is significantly lower for the F2F compared to mVAM. So either the food security condition has improved over time (the mVAM survey was run a few months after the F2F) or there is a bias in the sample demographics between the two surveys. In particular the intuition could be that because the mVAM survey is carried on by phones, is more likely to reach the better off.   
+
+#### HDDS categorization
+we can divide the HDDS scores from F2F and CATI into 2 buckets to have a better understanding: low (<=4), medium (>=5 & <=6), high (>=7)
+```{r}
+#concatenate into one frame
+d1 <- data.frame(HDDS=F2F[,'HDDS'])
+d1$MODE <- 'F2F'
+d2 <- data.frame(HDDS=mVAM[,'HDDS'])
+d2['MODE'] <- 'mVAM'
+dd <- rbind(d1,d2)
+
+summary(dd$HDDS)
+dd$HDDS_CAT[dd$HDDS<=4] <- "low"
+dd$HDDS_CAT[(dd$HDDS>=5)&(dd$HDDS<=6)] <- "medium"
+dd$HDDS_CAT[dd$HDDS>=7] <- "high"
+dd$HDDS_CAT <- as.factor(dd$HDDS_CAT)
+prop.table(table(dd$HDDS_CAT))
+```
+Now we can plot the distributions accross the different categories.
+```{r}
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+}
+p1 <- ggplot(data = dd, aes(x = HDDS_CAT, y = (..count..)/sum(..count..), fill=MODE)) + geom_bar(position=position_dodge(), alpha=0.7)+ scale_y_continuous( breaks = scales::pretty_breaks(n = 10)) + custo_theme() + scale_fill_brewer(palette="Set2")  
+
+plo <- grid.arrange(p1, p2, ncol=2)
+plo
+```
+
+```{r fig.width=12,fig.height=6}
+# plotting the distributions of respondent gender
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank(), legend.title = element_blank())
+}
+plt1 <- ggplot(data = dd[dd$MODE == 'F2F',], aes(x = HDDS_CAT, y = (..count..)/sum(..count..), fill=HDDS_CAT)) + geom_bar(position=position_dodge())+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.55)) + ggtitle("F2F") + custo_theme() + scale_x_discrete(limits=c('low','medium','high')) + scale_fill_manual(values=c('#86B875','#FC8D62','#CCCCCC'))
+plt2 <- ggplot(data = dd[dd$MODE == 'mVAM',], aes(x = HDDS_CAT, y = (..count..)/sum(..count..), fill=HDDS_CAT)) + geom_bar(position=position_dodge())+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.55)) + ggtitle("CATI") + custo_theme() + scale_x_discrete(limits=c('low','medium','high')) + scale_fill_manual(values=c('#86B875','#FC8D62','#CCCCCC'))
+plo <- grid.arrange(plt1, plt2, ncol=2)
+```
+
+
+
+
+
+
+
+
+
+
+#### Food Groups
+Now we analyze in detail the distribution within the various food-groups between the F2F and CATI surveys.
+```{r fig.width=12,fig.height=8}
+# Box plot of food groups
+# first off unpivot the HDDS_
+library(reshape)
+tmp <- F2F[c('HDDS_Cereals','HDDS_Roots','HDDS_Pulses','HDDS_Veg','HDDS_Fruits','HDDS_Meat','HDDS_Eggs','HDDS_Fish',
+           'HDDS_Dairy','HDDS_Sugars','HDDS_Fats','HDDS_Condiments')]
+tmp2 <- mVAM[c('HDDS_Cereals','HDDS_Roots','HDDS_Pulses','HDDS_Veg','HDDS_Fruits','HDDS_Meat','HDDS_Eggs','HDDS_Fish',
+           'HDDS_Dairy','HDDS_Sugars','HDDS_Fats','HDDS_Condiments')]
+
+tmp <- melt(tmp, measure.vars = c('HDDS_Cereals','HDDS_Roots','HDDS_Pulses','HDDS_Veg','HDDS_Fruits','HDDS_Meat','HDDS_Eggs','HDDS_Fish',
+           'HDDS_Dairy','HDDS_Sugars','HDDS_Fats','HDDS_Condiments')) 
+tmp2 <- melt(tmp2, measure.vars = c('HDDS_Cereals','HDDS_Roots','HDDS_Pulses','HDDS_Veg','HDDS_Fruits','HDDS_Meat','HDDS_Eggs','HDDS_Fish',
+           'HDDS_Dairy','HDDS_Sugars','HDDS_Fats','HDDS_Condiments'))
+
+tmp <- tmp[tmp$value == 1,]
+tmp2 <- tmp2[tmp2$value == 1,]
+
+tmp$value[tmp$value == 1] <- 'yes'
+tmp2$value[tmp2$value == 1] <- 'yes'
+
+tmp$value <- as.factor(tmp$value)
+tmp2$value <- as.factor(tmp2$value)
+
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+}
+
+p1 <- ggplot() + geom_bar(data = tmp, aes(x = value, y = (..count..)/sum(..count..)), position=position_dodge(),fill="#94D4C0", width = 0.7) + facet_wrap( facets= ~variable, scale="free_x") + custo_theme() + scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.20)) + ggtitle('F2F') 
+
+p2 <- ggplot() + geom_bar(data = tmp2, aes(x = value, y = (..count..)/sum(..count..)), position=position_dodge(),fill="#94D4C0", width = 0.7) + facet_wrap( facets= ~variable, scale="free_x") + custo_theme() + scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.20)) + ggtitle('CATI')
+
+plo <- grid.arrange(p1, p2, ncol=2)
+plo
+#tmp <- aggregate(tmp$value, by=list(Category=tmp$variable), FUN=sum, na.rm=TRUE)
+# plot
+
+```
+
+***
+### Gender
+Dive into the demographics of the two samples. Firstly let's check the gender ratio of the respondents: male population in the F2F
+```{r}
+cat('*** F2F and mVAM proportion of male respondents ***\n')
+get_stats_z(F2F, 'Gender', 'Male', mVAM, 'Gender', 'M')
+```
+```{r}
+test <- prop.test(x = c(sum(F2F[,'Gender']=='Male'), sum(mVAM[,'Gender']=='M')), n = c(nrow(F2F), nrow(mVAM)))
+test['p.value']
+```
+We can observe that the number of males interviewed through mVAM is almost double as per the F2F and better balanced. Is there maybe a correlation between the gender difference in the two sample groups with the HDDS? Maybe man have a harder time to admit being food insecure? Why are the sample demographics so different? 
+
+HDDS by gender
+```{r fig.width=12,fig.height=6}
+# density plot of HDDS between F2F and mVAM
+plt1 <- ggplot(F2F, aes(x = Gender, y = HDDS, fill=Gender)) +
+  geom_boxplot() + scale_fill_brewer(palette = "Accent") + ggtitle('F2F')
+plt2 <- ggplot(mVAM, aes(x = Gender, y = HDDS, fill=Gender)) +
+  geom_boxplot() + scale_fill_brewer(palette = "Accent") + ggtitle('CATI')
+plo <- grid.arrange(plt1, plt2, ncol=2) 
+```
+Maybe is a good idea to test the significance between male and female in mVAM 
+```{r}
+get_stats_z(mVAM, 'Gender', 'M', mVAM, 'Gender', 'F')
+```
+
+```{r fig.width=12,fig.height=6}
+# plotting the distributions of respondent gender
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank())
+}
+plt1 <- ggplot(data = F2F, aes(x = Gender, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.82)) + ggtitle("F2F") + custo_theme()
+plt2 <- ggplot(data = mVAM, aes(x = Gender, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.82)) + ggtitle("CATI") + custo_theme()
+plo <- grid.arrange(plt1, plt2, ncol=2)
+```
+
+***
+### HouseHold Gender
+Now let's explore the household gender in F2F and mVAM:
+```{r}
+get_stats_z(F2F, 'HoHSex', 'Male', mVAM, 'HoHSex', 'M')
+```
+The populations here seem to agree more. So maybe with F2F is more likely to interview the person at home which may be female as male may be at work, however with such high p-value we cannot take this difference as significant.
+```{r fig.width=12,fig.height=6}
+# plotting the distributions of HoH gender
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank())
+}
+plt1 <- ggplot(data = F2F, aes(x = HoHSex, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.70)) + ggtitle("F2F") + custo_theme()
+plt2 <- ggplot(data = mVAM, aes(x = HoHSex, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.70)) + ggtitle("CATI") + custo_theme()
+plo <- grid.arrange(plt1, plt2, ncol=2)
+```
+
+#### HDDS and Gender between ADM1: Gaza and Inhambane
+the HDDS score for Gaza from the F2F and the mVAM are reported below:
+```{r}
+F2F_Gaza <- F2F[F2F$Adm1_Name == "Gaza",]
+mVAM_Gaza <- mVAM[mVAM$ADM1_NAME == "Gaza",]
+F2F_Inhambane <- F2F[F2F$Adm1_Name == "Inhambane",]
+mVAM_Inhambane <- mVAM[mVAM$ADM1_NAME == "Inhambane",]
+cat('\n*** Gaza HDDS scores ***\n')
+get_stats_numerical(F2F_Gaza, 'HDDS', mVAM_Gaza, 'HDDS')
+cat('\n*** Inhambane HDDS score ***\n')
+get_stats_numerical(F2F_Inhambane, 'HDDS', mVAM_Inhambane, 'HDDS')
+```
+So we can see that the means do not differ greatly between the two regions accross the surveys. The gender proportions are also compared below.
+```{r fig.width=12,fig.height=8}
+# density plot of HDDS between F2F and mVAM
+plot1 <- ggplot() + geom_bar(data=F2F, aes(x=HDDS, fill=Adm1_Name), position=position_dodge()) +
+                    geom_vline(xintercept = median(F2F$HDDS), color="grey", linetype="dashed") + theme_bw() + ggtitle("F2F")
+plot2 <- ggplot() + geom_bar(data=mVAM, aes(x=HDDS, fill=ADM1_NAME), position=position_dodge()) +
+                    geom_vline(xintercept = median(mVAM$HDDS), color="grey", linetype="dashed") + theme_bw() + ggtitle("CATI")
+plo <- grid.arrange(plot1, plot2, ncol=2)
+```
+In Gaza the male populations accross the two surveys are
+```{r}
+get_stats_z(F2F_Gaza, 'Gender', 'Male', mVAM_Gaza, 'Gender', 'M')
+```
+And in Inhambane
+```{r}
+get_stats_z(F2F_Inhambane, 'Gender', 'Male', mVAM_Inhambane, 'Gender', 'M')
+```
+***
+### Age
+There is no record of age in the F2F survey. Below we show the age means for the mVAM survey, which for a country with median age of below 18yo is very high: 
+```{r}
+cat('mean: ', mean(mVAM[!is.na(mVAM$Age), 'Age']),
+'\nmedian: ', median(mVAM[!is.na(mVAM$Age), 'Age']),
+'\nmean in Gaza: ', mean(mVAM[(!is.na(mVAM$Age)) & (mVAM$ADM1_NAME == 'Gaza') , 'Age']),
+'\nmean in Inhambane: ', mean(mVAM[(!is.na(mVAM$Age)) & (mVAM$ADM1_NAME == 'Inhambane') , 'Age']))
+ggplot(mVAM, aes(x=Age, fill=Gender)) + geom_bar(alpha=0.5, width = 0.5) + theme_classic()
+```
+
+***
+### Income Source
+First off we need to change the labels in F2F and mVAM to match the same values in mVAM.
+```{r}
+F2F$IncomeSrc[F2F$IncomeSrc=="Agriculture and livestock"] <- "AgFish"
+F2F$IncomeSrc[F2F$IncomeSrc=="Self employed"] <- "SelfEmploy"
+F2F$IncomeSrc[F2F$IncomeSrc=="Fishing"] <- "AgFish"
+F2F$IncomeSrc[F2F$IncomeSrc=="Salary"] <- "Salary"
+mVAM$IncomeSrc[mVAM$IncomeSrc=="Assistance"] <- "Assistance/ casual labour"
+mVAM$IncomeSrc[mVAM$IncomeSrc=="CasualLabour"] <- "Assistance/ casual labour"
+```
+
+lets now look at the proportions of the different types of income source in F2F vs mVAM.
+```{r fig.width=12,fig.height=6}
+plt1 <- ggplot(data = F2F, aes(x = factor(IncomeSrc), y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(),fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.65)) + ggtitle("F2F")+ theme_classic() + theme(axis.title.y = element_blank(),axis.title.x = element_blank())
+plt2 <- ggplot(data = mVAM, aes(x = factor(IncomeSrc), y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(),fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.65)) + ggtitle("CATI")+ theme_classic() + theme(axis.title.y = element_blank(),axis.title.x = element_blank())
+plo <- grid.arrange(plt1, plt2, ncol=2)
+```
+
+```{r}
+for (val in unique(F2F$IncomeSrc))
+{
+  cat('\n*** F2F and mVAM', val, 'proportions ***\n')
+  print(get_stats_z(F2F, 'IncomeSrc', val, mVAM, 'IncomeSrc', val))
+}
+```
+***
+### Shocks
+We have to translate the values for shocks that have been used by the two surveys to match. Unfortunately some of the values that are in F2F do not have a mapping in the mVAM questionnaire used (although present in the codebook). These values will be casted as *None*.
+```{r}
+F2F$First_shock[F2F$First_shock=="Pests"] <- "None"
+mVAM$Shocks[mVAM$Shocks==" Death or illness of main household members that contribute to household income"] <-  "HoH death"
+F2F$First_shock[F2F$First_shock=="Floods"] <- "FloodCyclone"
+F2F$First_shock[F2F$First_shock=="No"] <- "None"
+F2F$First_shock[F2F$First_shock=="Chronic disease"] <- "DeathIllness"
+F2F$First_shock[F2F$First_shock=="Epidemic disease"] <- "DeathIllness"
+F2F$First_shock[F2F$First_shock=="Theft or loss of assets"] <- "None"
+F2F$First_shock[F2F$First_shock=="Other"] <- "None"
+F2F$First_shock[F2F$First_shock=="Other death"] <- "DeathIllness"
+F2F$First_shock[F2F$First_shock=="Reduced income"] <- "JobLoss"
+F2F$First_shock[F2F$First_shock=="Rising ag input prices"] <- "None"
+F2F$First_shock[F2F$First_shock=="Cyclone"] <- "FloodCyclone"
+F2F$First_shock[F2F$First_shock=="Rising food prices"] <- "None"
+F2F$First_shock[F2F$First_shock=="Livestock disease"] <- "None"
+F2F$First_shock[F2F$First_shock=="Job loss"] <- "JobLoss"
+```
+Now we can plot the proportions for the values of Shock. It appears that while climate issues were the main shock during the F2F round, death or illness is of major concern for the mVAM survey. Maybe people in mVAM, because they are less dependent on agriculture and fishing, are less affect from climate effects? Maybe there is a different lag period? maybe the questions are different? Recall period for shocks in F2F is 12 months vs 1 months recall period in mVAM.
+```{r fig.width=16,fig.height=8}
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.text.x = element_text(size = 16, angle = 45, vjust = 1, hjust=1),axis.title.x = element_blank())
+}
+
+plt1 <- ggplot(data = F2F, aes(x = factor(First_shock), y = (..count..)/sum(..count..))) +
+        geom_bar(position=position_dodge(),fill="lightgrey") + 
+        scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10),limits = c(0, 0.52)) +  
+        ggtitle("F2F") + custo_theme()
+plt2 <- ggplot(data = mVAM, aes(x = factor(Shocks), y = (..count..)/sum(..count..))) + 
+        geom_bar(position=position_dodge(),fill="lightgrey") + 
+        scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10),limits = c(0, 0.52)) +
+        ggtitle("CATI")+ custo_theme()
+plo <- grid.arrange(plt1, plt2, ncol=2) 
+```
+```{r}
+for (val in unique(F2F$First_shock))
+{
+  cat('\n*** F2F and mVAM', val, 'proportions ***\n')
+  print(get_stats_z(F2F, 'First_shock', val, mVAM, 'Shocks', val))
+}
+```
+***
+### Assessing better off vs worse off
+We have different proxies to measure the living conditions of the respondants between the F2F surcey and the mVAM survey as the first uses *ToiletType* while second relies on *RoofType*. For ToiletType, where *Traditional unimproved latrine* accounts for 70% of the sample, we will classify as follows:
+```{r}
+F2F$ToiletType <- as.factor(F2F$ToiletType)
+mVAM$RoofType <- as.factor(mVAM$RoofType)
+F2F$condition <- ifelse(F2F$ToiletType == 'Traditional unimproved latrine', 'worse off', 'better off') 
+```
+For RoofType instead we have will replace as follow:
+```{r}
+mVAM$condition <- ifelse(mVAM$RoofType == 'Zinc', 'better off',
+                  ifelse(mVAM$RoofType == 'Grass', 'worse off',
+                  ifelse(mVAM$RoofType == 'Cement', 'better off', 'worse off')))
+```
+Now we can compare the populations of the F2F and mVAM samples
+```{r}
+for (val in unique(F2F$condition))
+{
+  cat('\n*** F2F and mVAM', val, 'proportions ***\n')
+  print(get_stats_z(F2F, 'condition', val, mVAM, 'condition', val))
+}
+```
+```{r}
+# plot better off vs worse off
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+}
+plt1 <- ggplot(data = F2F, aes(x = condition, y = (..count..)/sum(..count..))) + geom_bar(fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.70)) + ggtitle("F2F") + custo_theme()
+plt2 <- ggplot(data = mVAM, aes(x = condition, y = (..count..)/sum(..count..))) + geom_bar(fill="lightgrey")+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10), limits = c(0, 0.70)) + ggtitle("CATI") + custo_theme()
+plo <- grid.arrange(plt1, plt2, ncol=2)
+```
+
+### Free Field
+top words in the free field.
+```{r}
+library(tm)
+txt <- Corpus(VectorSource(mVAM$FreeResponse))
+txt <- tm_map(txt, removeWords, stopwords("english"))
+tdm <- TermDocumentMatrix(txt)
+findFreqTerms(tdm, lowfreq=50, highfreq=Inf)
+```
+```{r}
+m <- as.matrix(tdm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+```
+```{r}
+wordcloud(words = d$word, freq = d$freq, min.freq = 20,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+What is the lack of?
+```{r}
+findAssocs(tdm, terms="lack", corlimit = 0.3)
+```
+What is the issue with food?
+```{r}
+findAssocs(tdm, terms="food", corlimit = 0.2)
+```
+
+```{r}
+findAssocs(tdm, terms="farm", corlimit = 0.2)
+```
+***
+## Investigating Mode Bias
+According to HDDS guidelines, "In the absence of income or economic data from the baseline survey, a HDDS target can be established by taking the average diversity of the 33 percent of households with the highest diversity (upper tercile of diversity).". So lets take the top 33% of the HDDS scores from mVAM as target:
+```{r}
+cat('the one third best off has HDDS above', quantile(mVAM$HDDS, c(0.67))) 
+best_group_mVAM <- mVAM[ mVAM$HDDS >= mVAM$HDDS[order(mVAM$HDDS, decreasing=TRUE)][as.integer(nrow(mVAM)/3)] , ]
+best_group_mean_mVAM <- mean(best_group_mVAM$HDDS)
+cat('\nmean of the top group: ', round(best_group_mean_mVAM))
+perc_pop_below_target <- nrow(mVAM[mVAM$HDDS < best_group_mean_mVAM,]) / nrow(mVAM)
+cat('\npercentage of population below target: ', perc_pop_below_target)
+```
+and in the F2F sample:
+```{r}
+cat('the one third best off has HDDS above', quantile(F2F$HDDS, c(0.67))) 
+best_group_F2F <- F2F[ F2F$HDDS >= F2F$HDDS[order(F2F$HDDS, decreasing=TRUE)][as.integer(nrow(F2F)/3)] , ]
+best_group_mean_F2F <- mean(best_group_F2F$HDDS)
+cat('\nmean of the top group: ', round(best_group_mean_F2F))
+perc_pop_below_target <- nrow(F2F[F2F$HDDS < best_group_mean_F2F,]) / nrow(F2F)
+cat('\npercentage of population below target: ', perc_pop_below_target)
+```
+```{r}
+get_stats_numerical(best_group_F2F, 'HDDS', best_group_mVAM, 'HDDS')
+```
+```{r fig.width=12,fig.height=6}
+d1 <- data.frame(HDDS=F2F[,'HDDS'])
+d1$MODE <- 'F2F'
+d2 <- data.frame(HDDS=mVAM[,'HDDS'])
+d2['MODE'] <- 'CATI'
+dd <- rbind(d1,d2)
+
+dd$HDDS_CAT <- "below target"
+dd$HDDS_CAT[(dd$HDDS >= best_group_mean_F2F)&(dd$MODE == 'F2F')] <- "above target"
+dd$HDDS_CAT[(dd$HDDS >= best_group_mean_mVAM)&(dd$MODE == 'CATI')] <- "above target"
+dd$HDDS_CAT <- as.factor(dd$HDDS_CAT)
+prop.table(table(dd$HDDS_CAT))
+
+# plot the proportions below and below the target between CATI and F2F
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+}
+plt1 <- ggplot(data = dd, aes(x = HDDS_CAT, y = (..count..), fill=MODE)) + geom_bar(position=position_dodge(), alpha=0.7)+ scale_y_continuous( breaks = scales::pretty_breaks(n = 10)) + custo_theme() + scale_fill_brewer(palette="Set2")  
+plt1
+```
+
+```{r fig.width=12,fig.height=6}
+d1 <- data.frame(HDDS=F2F[,'HDDS'])
+d2 <- data.frame(HDDS=mVAM[,'HDDS'])
+
+
+d1$HDDS_CAT <- "below target"
+d2$HDDS_CAT <- "below target"
+d1$HDDS_CAT[d1$HDDS >= best_group_mean_F2F] <- "above target"
+d2$HDDS_CAT[d2$HDDS >= best_group_mean_mVAM] <- "above target"
+
+# plot the proportions below and below the target between CATI and F2F
+custo_theme <- function(){
+  theme_classic() +
+  theme(axis.title.y = element_blank(), axis.title.x = element_blank())
+}
+plt1 <- ggplot(data = d1, aes(x = HDDS_CAT, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), alpha=0.7, fill=c("#94D4C0","#FDAF91"))+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10),  limits = c(0, 0.82)) + custo_theme() + ggtitle('F2F')   
+plt2 <- ggplot(data = d2, aes(x = HDDS_CAT, y = (..count..)/sum(..count..))) + geom_bar(position=position_dodge(), alpha=0.7, fill=c("#94D4C0","#FDAF91"))+ scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks(n = 10),  limits = c(0, 0.82)) + custo_theme()  + ggtitle('CATI') 
+plo <- grid.arrange(plt1, plt2, ncol=2)
+plo
+```
+
