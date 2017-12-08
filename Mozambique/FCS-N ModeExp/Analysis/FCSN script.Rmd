@@ -1,0 +1,393 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+#Checking consistency in the respondents'answer
+
+Looking at the difference in demographic answers among the same respondents
+Downloading the data from the DB and creating different data-frames.
+```{r}
+#FCSN               -->Dataset with 8,573 resp. those respondents completed the SMS survey replying more than 5 days
+#FCSN24H7days       -->Dataset with 7,644 resp. those respondents completed the SMS survey replying more than 5 days excluding those who replied in Day8 #FCSN24H7days_      -->Dataset with 3,316 resp. those respondents completed the SMS surveys in Day1, Day2, Day3, Day4, Day5,...,Day7 and Day8 but                              answers of Day8 are not included.
+#FCSN24H7days_answer1stDay ---> Dataset of respondents who replied in Day 8 and Day 1
+
+
+library(RODBC)
+channel <- odbcConnect("mvam", uid="mvamuser", pwd="P4r21$3L", believeNRows=FALSE)
+FCSN<- sqlQuery(channel,
+                'select * from Obs_FCSNModExp')
+
+FCSN24H7days <- FCSN[which(FCSN$PollVersion!='Day 8: 7 day recall'),] #Downloading only respondents who replied to the 24H SMS for 7 days
+
+
+droplevels(FCSN24H1stday$PollVersion)
+
+str(FCSN24H7days)
+#From CSV, the reason of taking the data from CSV is because the data on the database are cleaned keeping the first answer of the demo answers.
+setwd('C://Users//silvia.passeri//Desktop//Work 2017//Joburg//Mozambique//HDDS test//mVAM//SMS')
+FCSN24H8day<-read.csv("FCS-N_Moz_GroupAonly answers Day8.csv", header =TRUE)            #Respondents who replied in Day8
+str(FCSN24H8day)
+
+FCSN24H7_8days <-  FCSN %>% group_by(RspID) %>% filter(n()>7) #I am keeping only respondents who replied for 8 consecutive days
+str(FCSN24H1stday)
+
+FCSN24H1stday <- FCSN24H7_8days[which(FCSN24H7_8days$PollVersion=='Day 1: 24 hr recall and demographics'),] #Respondents who replied in Day1
+
+install.packages("dplyr")
+library(dplyr)
+FCSN24H8day <- subset(FCSN24H8day, FCSN24H8day$UserId %in% unique(FCSN24H1stday$RspID))
+#FCSN24H8day2 <- FCSN24H7_8days[which(FCSN24H7_8days$PollVersion=='Day 8: 7 day recall'),] #Respondents who took part to the 24H survey in Day8
+
+FCSN24H7days_answer1stDay <- FCSN[which(FCSN$PollVersion=='Day 1: 24 hr recall and demographics'),] #respondents who replied to the 24H in Day1
+FCSN24H7days_answer1stDay <- subset(FCSN24H7days_answer1stDay, FCSN24H7days_answer1stDay$RspID %in% unique(FCSN24H8day$UserId)) #Keeping only                                                                                                                                           #respondents who replied                                                                                                                                 #in both Day1 and Day8. 
+
+
+FCSN24H7days_ <- subset(FCSN24H7days, FCSN24H7days$RspID %in% unique(FCSN24H8day$UserId)) #Keeping only                                                                                                                                       #respondents who replied  
+                                                                                      #in both Day1-Day7 and Day8.
+
+str(FCSN24H7days_)                                                                                      
+
+
+```
+
+Some statistics on demographic
+Datasets that i am going to take into consideration for the analysis are:
+1. FCSN24H7days_answer1stDay and
+2. FCSN24H8day
+
+```{r}
+FCSN24H7days_answer1stDay_sub<-subset(FCSN24H7days_answer1stDay,select=c("RspID","ADM1_NAME","Age","Gender","ToiletType","RoofType"))
+FCSN24H8day_sub<-subset(FCSN24H8day, select=c("UserId","ADM.EN.Moz", "Age", "Gender","ToiletType","RoofType" ))
+colnames(FCSN24H8day_sub)<- c("RspID","ADM1_NAME2", "Age2","Gender2","ToiletType2","RoofType2")
+merge<-merge(FCSN24H7days_answer1stDay_sub,FCSN24H8day_sub, by="RspID")
+
+
+merge$ToiletType22[merge$ToiletType2=='Improved latrine']<-"VIP"
+merge$ToiletType22[merge$ToiletType2=='In the woods']<-"Bush"
+merge$ToiletType22[merge$ToiletType2=='Unimproved latrine']<-"Unimproved"
+merge$ToiletType22[merge$ToiletType2=='Traditional improved latrine']<-"Improved"
+merge$ToiletType22[merge$ToiletType2=='Western style']<-"Flush"
+merge$ToiletType22[merge$ToiletType2=='Traditiol improved latrine']<-"Improved"
+
+
+merge$Gender22[merge$Gender2=='Female']<-"F"
+merge$Gender22[merge$Gender2=='Male']<-"M"
+
+merge$RoofType22[merge$RoofType2=='Metal/tin/zinc']<-"Metal"
+merge$RoofType22[merge$RoofType2=='Concrete']<-"Concrete"
+merge$RoofType22[merge$RoofType2=='Tiles or asbestos']<-"Asbestos"
+merge$RoofType22[merge$RoofType2=='Shingles or Plastic sheets']<-"Plastic"
+merge$RoofType22[merge$RoofType2=='Other']<-"Other"
+merge$RoofType22[merge$RoofType2=='Thatch or grass']<-"Thatch"
+
+
+#% of Respondents who changed their answers between Day1 and Day8
+#ToiletType22, Gender22, Age2, ADM1_NAME2, RoofType22 are variables for Day8
+#ToiletType, Gender, Age, ADM1_NAME, RoofType are variables for Day1
+
+((133-sum(merge$ToiletType22==merge$ToiletType))/133)*100
+((133-sum(merge$Gender22==merge$Gender))/133)*100
+((133-sum(merge$Age2==merge$Age))/133)*100
+((133-sum(merge$ADM1_NAME2==merge$ADM1_NAME))/133)*100
+((133-sum(merge$RoofType22==merge$RoofType))/133)*100
+
+is.factor(merge$RoofType222)
+list.roof<-c(4,9,12,22,27,30,33,36,41,42,43,48,53,55,59,60,62,64,65,68,70,75,83,85,86,93,94,97,99,100,104,111,112,114,115,116,117,119,121,124,129,130,132)
+list.toilet<-c(8,11,18,22,29,37,41,42,43,48,49,56,60,61,62,63,64,65,67,69,74,75,84,89,92,94,97,99,100,108,110,115,117,118,119,122,123,129,130,132)
+
+list.age<-c(3,11,12,14,27,35,38,42,52,53,55,60,64,77,86,91,102,103,127,129)
+#Showing how the answers changed from Day 1 to Day8 for same respondents
+merge$RoofTypeDay1<-as.character(merge$RoofType)
+
+#Roof Type
+RoofType_Day1<-for (i in list.roof) {
+print(merge$RoofTypeDay1[i])
+}
+RoofType_Day8<-for (i in list.roof) {
+print(merge$RoofType22[i])
+}
+
+#Toilet Type
+merge$ToiletTypeDay1<-as.character(merge$ToiletType)
+ToiletType_Day1<-for (i in list.toilet) {
+print(merge$ToiletTypeDay1[i])
+}
+
+ToiletType_Day8<-for (i in list.toilet) {
+print(merge$ToiletType22[i])
+}
+
+#Age
+Age_Day1<-for (i in list.age) {
+print(merge$Age[i])
+}
+
+Age_Day8<-for (i in list.age) {
+print(merge$Age2[i])
+}
+```
+Analysing the demographic answers given by same respondents in the SMS survey conducted during Day1 and Day8, it was noticed that:
+1. around 30% of the respondents changed their answers for toilet type and roof type, 
+2. 15% changed their age and 
+3. around 7% changed the gender of the respondent. 
+
+Changes in the toilet type and roof type answers could be due to the fact that the options given for those two questions are not clear and/or are not well visible in basic phones - assuming that most of the respondents reply to the SMS surveyus using basic phones as the SMS survey was conducted only in rural areas - and respondents just replied with one of the options. No evidence was found on the fact that respondents gave a better or worse answer in Day8 compared to Day1 for those two questions.
+However, changes in the age and the sex of the respondents could be due to the fact that different respondents replied in Day1 and Day8.
+
+Conclusion: when we conduct a survey to the same panel of respondents it is highly recommended ask the demographics questions even if they dont change over time. 
+
+##Second Part
+#2A) Comparing SMS 24H 1 days recall to SMS 24H 7 day recall
+The number of respondents that I am going to analyse is 133. Those are the respondents who replied for 8 consecutive days to the SMS survey
+
+
+```{r}
+#Datasets to be used are:
+str(FCSN24H8day)
+str(FCSN24H7dayGroupA133resp)
+#From CSV, the reason of taking the data from CSV is because the data on the database are cleaned keeping the first answer of the demog answers.Dataset in part created by Gaurav
+setwd('C://Users//silvia.passeri//Desktop//Work 2017//Joburg//Mozambique//HDDS test//mVAM//SMS')
+FCSN24H7dayGroupA133resp<-read.csv("Group A_24Hrecall_133respondents.csv", header =TRUE)            
+
+#Creating the 7 day variable for each food item
+FCSN24H7dayGroupA133resp$Grain7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Grains1", "Grains2","Grains3","Grains4","Grains5","Grains6","Grains7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Roots7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Roots1", "Roots2","Roots3","Roots4","Roots5","Roots6","Roots7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Pulses7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Pulses1", "Pulses2","Pulses3","Pulses4","Pulses5","Pulses6","Pulses7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Nutseeds7D <-rowSums(FCSN24H7dayGroupA133resp[,c("NutSeeds1","NutSeeds2","NutSeeds3","NutSeeds4","NutSeeds5","NutSeeds6","NutSeeds7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Dairy7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Dairy1","Dairy2","Dairy3","Dairy4","Dairy5","Dairy6","Dairy7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$OrganMeat7D<-rowSums(FCSN24H7dayGroupA133resp[,c("OrganMeat1","OrganMeat2","OrganMeat3","OrganMeat4","OrganMeat5","OrganMeat6","OrganMeat7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$MeatPoultry7D<- rowSums(FCSN24H7dayGroupA133resp[,c("MeatPoultry1","MeatPoultry2","MeatPoultry3","MeatPoultry4","MeatPoultry5","MeatPoultry6","MeatPoultry7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Fish7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Fish1","Fish2","Fish3","Fish4","Fish5","Fish6","Fish7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Eggs7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Eggs1","Eggs2","Eggs3","Eggs4","Eggs5","Eggs6","Eggs7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$VitAVeg7D <- rowSums(FCSN24H7dayGroupA133resp[,c("VitAVeg1","VitAVeg2","VitAVeg3","VitAVeg4","VitAVeg5","VitAVeg6","VitAVeg7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$DGLVeg7D <- rowSums(FCSN24H7dayGroupA133resp[,c("DGLVeg1","DGLVeg2","DGLVeg3","DGLVeg4","DGLVeg5","DGLVeg6","DGLVeg7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$OtherVeg7D <- rowSums(FCSN24H7dayGroupA133resp[,c("OtherVeg1","OtherVeg2","OtherVeg3","OtherVeg4","OtherVeg5","OtherVeg6","OtherVeg7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$VitAFruits7D <-rowSums(FCSN24H7dayGroupA133resp[,c("VitAFruits1","VitAFruits2","VitAFruits3","VitAFruits4","VitAFruits5","VitAFruits6","VitAFruits7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$OtherFruits7D <-rowSums(FCSN24H7dayGroupA133resp[,c("OtherFruits1","OtherFruits2","OtherFruits3","OtherFruits4","OtherFruits5","OtherFruits6","OtherFruits7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$Fats7D <- rowSums(FCSN24H7dayGroupA133resp[,c("Fats1","Fats2","Fats3","Fats4","Fats5","Fats6","Fats7")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$SugarsD <- rowSums(FCSN24H7dayGroupA133resp[,c("Sugars1","Sugars2","Sugars3","Sugars4","Sugars5","Sugars6","Sugars7")], na.rm=TRUE)
+
+
+#Renaming the variables of the 
+names(FCSN24H8day)[names(FCSN24H8day)=="Grains"] <- "Grain7D"       
+names(FCSN24H8day)[names(FCSN24H8day)=="Whiteroots.tubers.plantains"] <- "Roots7D"         
+names(FCSN24H8day)[names(FCSN24H8day)=="Pulses.beans.peas.lentils"] <- "Pulses7D"   
+names(FCSN24H8day)[names(FCSN24H8day)=="NutsSeeds"] <- "Nutseeds7D"   
+names(FCSN24H8day)[names(FCSN24H8day)=="Dairy"] <- "Dairy7D"   
+names(FCSN24H8day)[names(FCSN24H8day)=="OrganMeat"] <- "OrganMeat7D"   
+names(FCSN24H8day)[names(FCSN24H8day)=="MeatPoultry"] <- "MeatPoultry7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="Fish"] <- "Fish7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="Eggs"] <- "Eggs7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="VitaminA.RichVegetables"] <- "VitAVeg7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="DarkGreenLeafyVegetables"] <- "DGLVeg7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="OtherVegetables"] <- "OtherVeg7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="Vitamin.A.RichFruits"] <- "VitAFruits7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="OtherFruits"] <- "OtherFruits7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="Fats"] <- "Fats7D" 
+names(FCSN24H8day)[names(FCSN24H8day)=="Sugars"] <- "SugarsD" 
+names(FCSN24H8day)[names(FCSN24H8day)=="ADM.EN.Moz"] <- "ADM1_NAME" 
+
+
+
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='Improved latrine']<-"VIP"
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='In the woods']<-"Bush"
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='Unimproved latrine']<-"Unimproved"
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='Traditional improved latrine']<-"Improved"
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='Western style']<-"Flush"
+FCSN24H8day$ToiletType2[FCSN24H8day$ToiletType=='Traditiol improved latrine']<-"Improved"
+
+
+FCSN24H8day$Gender2[FCSN24H8day$Gender=='Female']<-"F"
+FCSN24H8day$Gender2[FCSN24H8day$Gender=='Male']<-"M"
+
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Metal/tin/zinc']<-"Metal"
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Concrete']<-"Concrete"
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Tiles or asbestos']<-"Asbestos"
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Shingles or Plastic sheets']<-"Plastic"
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Other']<-"Other"
+FCSN24H8day$RoofType2[FCSN24H8day$RoofType=='Thatch or grass']<-"Thatch"
+
+
+#Calculating the FCS
+
+str(FCSN24H7dayGroupA133resp)
+FCSN24H7dayGroupA133resp$FG_Staples<- rowSums(FCSN24H7dayGroupA133resp[,c("Grain7D", "Roots7D")],na.rm=TRUE)
+FCSN24H7dayGroupA133resp$FG_Pulses<- rowSums(FCSN24H7dayGroupA133resp[,c("Pulses7D", "Nutseeds7D")],na.rm=TRUE)
+FCSN24H7dayGroupA133resp$FG_Milk<- FCSN24H7dayGroupA133resp$Dairy7D
+FCSN24H7dayGroupA133resp$FG_Meat<- rowSums(FCSN24H7dayGroupA133resp[,c("OrganMeat7D", "MeatPoultry7D","Fish7D","Eggs7D")],na.rm=TRUE)
+FCSN24H7dayGroupA133resp$FG_Veg<- rowSums(FCSN24H7dayGroupA133resp[,c("VitAVeg7D","DGLVeg7D","OtherVeg7D")],na.rm=TRUE)
+FCSN24H7dayGroupA133resp$FG_Fruit<- rowSums(FCSN24H7dayGroupA133resp[,c("VitAFruits7D","VitAFruits7D")],na.rm=TRUE)
+FCSN24H7dayGroupA133resp$FG_Oil<- FCSN24H7dayGroupA133resp$Fats7D
+FCSN24H7dayGroupA133resp$FG_Sugar<- FCSN24H7dayGroupA133resp$SugarsD
+
+FCSN24H8day$FG_Staples<- rowSums(FCSN24H8day[,c("Grain7D", "Roots7D")],na.rm=TRUE)
+FCSN24H8day$FG_Pulses<- rowSums(FCSN24H8day[,c("Pulses7D", "Nutseeds7D")],na.rm=TRUE)
+FCSN24H8day$FG_Milk<- FCSN24H8day$Dairy7D
+FCSN24H8day$FG_Meat<- rowSums(FCSN24H8day[,c("OrganMeat7D", "MeatPoultry7D","Fish7D","Eggs7D")],na.rm=TRUE)
+FCSN24H8day$FG_Veg<- rowSums(FCSN24H8day[,c("VitAVeg7D","DGLVeg7D","OtherVeg7D")],na.rm=TRUE)
+FCSN24H8day$FG_Fruit<- rowSums(FCSN24H8day[,c("VitAFruits7D","VitAFruits7D")],na.rm=TRUE)
+FCSN24H8day$FG_Oil<- FCSN24H8day$Fats7D
+FCSN24H8day$FG_Sugar<- FCSN24H8day$SugarsD
+
+FCSN24H7dayGroupA133resp$FG_Staples<-ifelse(FCSN24H7dayGroupA133resp$FG_Staples>7,7,FCSN24H7dayGroupA133resp$FG_Staples)
+FCSN24H7dayGroupA133resp$FG_Pulses<-ifelse(FCSN24H7dayGroupA133resp$FG_Pulses>7,7,FCSN24H7dayGroupA133resp$FG_Pulses)
+FCSN24H7dayGroupA133resp$FG_Milk<-ifelse(FCSN24H7dayGroupA133resp$FG_Milk>7,7,FCSN24H7dayGroupA133resp$FG_Milk)
+FCSN24H7dayGroupA133resp$FG_Meat<-ifelse(FCSN24H7dayGroupA133resp$FG_Meat>7,7,FCSN24H7dayGroupA133resp$FG_Meat)
+FCSN24H7dayGroupA133resp$FG_Veg<-ifelse(FCSN24H7dayGroupA133resp$FG_Veg>7,7,FCSN24H7dayGroupA133resp$FG_Veg)
+FCSN24H7dayGroupA133resp$FG_Fruit<-ifelse(FCSN24H7dayGroupA133resp$FG_Fruit>7,7,FCSN24H7dayGroupA133resp$FG_Fruit)
+
+FCSN24H8day$FG_Staples<-ifelse(FCSN24H8day$FG_Staples>7,7,FCSN24H8day$FG_Staples)
+FCSN24H8day$FG_Pulses<-ifelse(FCSN24H8day$FG_Pulses>7,7,FCSN24H8day$FG_Pulses)
+FCSN24H8day$FG_Milk<-ifelse(FCSN24H8day$FG_Milk>7,7,FCSN24H8day$FG_Milk)
+FCSN24H8day$FG_Meat<-ifelse(FCSN24H8day$FG_Meat>7,7,FCSN24H8day$FG_Meat)
+FCSN24H8day$FG_Veg<-ifelse(FCSN24H8day$FG_Veg>7,7,FCSN24H8day$FG_Veg)
+FCSN24H8day$FG_Fruit<-ifelse(FCSN24H8day$FG_Fruit>7,7,FCSN24H8day$FG_Fruit)
+
+FCSN24H7dayGroupA133resp$FCS<-FCSN24H7dayGroupA133resp$FG_Staples*2+FCSN24H7dayGroupA133resp$FG_Pulses*3+FCSN24H7dayGroupA133resp$FG_Milk*4+FCSN24H7dayGroupA133resp$FG_Meat*4+FCSN24H7dayGroupA133resp$FG_Veg+FCSN24H7dayGroupA133resp$FG_Fruit+FCSN24H7dayGroupA133resp$FG_Oil*0.5+FCSN24H7dayGroupA133resp$FG_Sugar*0.5
+
+FCSN24H8day$FCS<-FCSN24H8day$FG_Staples*2+FCSN24H8day$FG_Pulses*3+FCSN24H8day$FG_Milk*4+FCSN24H8day$FG_Meat*4+FCSN24H8day$FG_Veg+FCSN24H8day$FG_Fruit+FCSN24H8day$FG_Oil*0.5+FCSN24H8day$FG_Sugar*0.5
+
+#Creating FCG
+
+FCSN24H7dayGroupA133resp$FCG<-ifelse(FCSN24H7dayGroupA133resp$FCS<=21,1, ifelse((FCSN24H7dayGroupA133resp$FCS>35),3,2))
+
+FCSN24H8day$FCG<-ifelse(FCSN24H8day$FCS<=21,1, ifelse((FCSN24H8day$FCS>35),3,2))
+
+#Performing FCSN
+FCSN24H8day$VitaminARichFood<- rowSums(FCSN24H8day[,c("Dairy7D","OrganMeat7D","SugarsD","Eggs7D","VitAFruits7D","VitAVeg7D")], na.rm=TRUE)
+FCSN24H8day$ProteinRichFood<-  rowSums(FCSN24H8day[,c("Pulses7D","Dairy7D","OrganMeat7D","Fish7D","Eggs7D")], na.rm=TRUE)
+FCSN24H8day$HemIronRichFood<-rowSums(FCSN24H8day[,c("OrganMeat7D","Fish7D")], na.rm=TRUE)
+
+FCSN24H7dayGroupA133resp$VitaminARichFood<- rowSums(FCSN24H7dayGroupA133resp[,c("Dairy7D","OrganMeat7D","SugarsD","Eggs7D","VitAFruits7D","VitAVeg7D")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$ProteinRichFood<-  rowSums(FCSN24H7dayGroupA133resp[,c("Pulses7D","Dairy7D","OrganMeat7D","Fish7D","Eggs7D")], na.rm=TRUE)
+FCSN24H7dayGroupA133resp$HemIronRichFood<-rowSums(FCSN24H7dayGroupA133resp[,c("OrganMeat7D","Fish7D")], na.rm=TRUE)
+
+
+FCSN24H8day$FG_VitACat<-ifelse(FCSN24H8day$VitaminARichFood==0,1, ifelse((FCSN24H8day$VitaminARichFood==0) | (FCSN24H8day$VitaminARichFood==1)|(FCSN24H8day$VitaminARichFood==3)|(FCSN24H8day$VitaminARichFood==4)|(FCSN24H8day$VitaminARichFood==5) |(FCSN24H8day$VitaminARichFood==6),2,3))
+
+FCSN24H7dayGroupA133resp$FG_VitACat<-ifelse(FCSN24H7dayGroupA133resp$VitaminARichFood==0,1, ifelse((FCSN24H7dayGroupA133resp$VitaminARichFood==0) | (FCSN24H7dayGroupA133resp$VitaminARichFood==1)|(FCSN24H7dayGroupA133resp$VitaminARichFood==3)|(FCSN24H7dayGroupA133resp$VitaminARichFood==4)|(FCSN24H7dayGroupA133resp$VitaminARichFood==5) |(FCSN24H7dayGroupA133resp$VitaminARichFood==6),2,3))
+
+FCSN24H8day$FG_ProteinCat<-ifelse(FCSN24H8day$ProteinRichFood==0,1, ifelse((FCSN24H8day$ProteinRichFood==0) | (FCSN24H8day$ProteinRichFood==1)|(FCSN24H8day$ProteinRichFood==3)|(FCSN24H8day$ProteinRichFood==4)|(FCSN24H8day$ProteinRichFood==5)|(FCSN24H8day$ProteinRichFood==6),2,3))
+
+FCSN24H7dayGroupA133resp$FG_ProteinCat<-ifelse(FCSN24H7dayGroupA133resp$ProteinRichFood==0,1, ifelse((FCSN24H7dayGroupA133resp$ProteinRichFood==0) | (FCSN24H7dayGroupA133resp$ProteinRichFood==1)|(FCSN24H7dayGroupA133resp$ProteinRichFood==3)|(FCSN24H7dayGroupA133resp$ProteinRichFood==4)|(FCSN24H7dayGroupA133resp$ProteinRichFood==5)|(FCSN24H7dayGroupA133resp$ProteinRichFood==6),2,3))
+
+
+FCSN24H7dayGroupA133resp$FG_HIronCat<-ifelse(FCSN24H7dayGroupA133resp$HemIronRichFood==0,1, ifelse((FCSN24H7dayGroupA133resp$HemIronRichFood==0) | (FCSN24H7dayGroupA133resp$HemIronRichFood==1)|(FCSN24H7dayGroupA133resp$HemIronRichFood==3)|(FCSN24H7dayGroupA133resp$HemIronRichFood==4)|(FCSN24H7dayGroupA133resp$HemIronRichFood==5)|(FCSN24H7dayGroupA133resp$HemIronRichFood==6),2,3))
+
+FCSN24H8day$FG_HIronCat<-ifelse(FCSN24H8day$HemIronRichFood==0,1, ifelse((FCSN24H8day$HemIronRichFood==0) | (FCSN24H8day$HemIronRichFood==1)|(FCSN24H8day$HemIronRichFood==3)|(FCSN24H8day$HemIronRichFood==4)|(FCSN24H8day$HemIronRichFood==5)|(FCSN24H8day$HemIronRichFood==6),2,3))
+
+
+FCSN24H7dayGroupA133resp$FG_VitACat<-as.factor(FCSN24H7dayGroupA133resp$FG_VitACat)
+FCSN24H7dayGroupA133resp$FG_ProteinCat<-as.factor(FCSN24H7dayGroupA133resp$FG_ProteinCat)
+FCSN24H7dayGroupA133resp$FG_HIronCat<-as.factor(FCSN24H7dayGroupA133resp$FG_HIronCat)
+
+FCSN24H8day$FG_VitACat<-as.factor(FCSN24H8day$FG_VitACat)
+FCSN24H8day$FG_ProteinCat<-as.factor(FCSN24H8day$FG_ProteinCat)
+FCSN24H8day$FG_HIronCat<-as.factor(FCSN24H8day$FG_HIronCat)
+
+levels(FCSN24H7dayGroupA133resp$FG_VitACat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(FCSN24H7dayGroupA133resp$FG_ProteinCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(FCSN24H7dayGroupA133resp$FG_HIronCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+
+levels(FCSN24H8day$FG_VitACat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(FCSN24H8day$FG_ProteinCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+levels(FCSN24H8day$FG_HIronCat)<-c("0 times (Never Consumed)", "1-6 times (Consumed sometimes)","7 times or more (Consumed at least daily)")
+```
+
+
+
+#Food Consumption Score Nutrition analysis 
+1) Percentage of food groups by ADM1, Toilet Type, RoofType and Gender
+```{r}
+
+freq.perc.FG<- function(FG, variable){
+  freq<-table(FG,variable)
+  freq.perc <-round(prop.table(freq,2)*100,1)
+  
+  return(freq.perc)
+}
+```
+1.1)FGroups vs ADM1
+```{r}
+table(FCSN24H8day$ADM1_NAME)
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_VitACat,FCSN24H7dayGroupA133resp$ADM1_NAME)
+freq.perc.FG(FCSN24H8day$FG_VitACat,FCSN24H8day$ADM1_NAME)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_ProteinCat,FCSN24H7dayGroupA133resp$ADM1_NAME)
+freq.perc.FG(FCSN24H8day$FG_ProteinCat,FCSN24H8day$ADM1_NAME)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_HIronCat,FCSN24H7dayGroupA133resp$ADM1_NAME)
+freq.perc.FG(FCSN24H8day$FG_HIronCat,FCSN24H8day$ADM1_NAME)
+
+```
+1.2)FGroups vs ToiletType
+```{r}
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_VitACat,FCSN24H7dayGroupA133resp$ToiletType)
+freq.perc.FG(FCSN24H8day$FG_VitACat,FCSN24H8day$ToiletType2)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_ProteinCat,FCSN24H7dayGroupA133resp$ToiletType)
+freq.perc.FG(FCSN24H8day$FG_ProteinCat,FCSN24H8day$ToiletType2)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_HIronCat,FCSN24H7dayGroupA133resp$ToiletType)
+freq.perc.FG(FCSN24H8day$FG_HIronCat,FCSN24H8day$ToiletType2)
+
+```
+
+1.3)FGroups vs RoofType
+```{r}
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_VitACat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_VitACat,FCSN24H8day$RoofType2)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_ProteinCat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_ProteinCat,FCSN24H8day$RoofType2)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_HIronCat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_HIronCat,FCSN24H8day$RoofType2)
+```
+
+1.4)FGroups vs Gender
+```{r}
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_VitACat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_VitACat,FCSN24H8day$Gender2)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_ProteinCat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_ProteinCat,FCSN24H8day$Gender2)
+
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_HIronCat,FCSN24H7dayGroupA133resp$RoofType)
+freq.perc.FG(FCSN24H8day$FG_HIronCat,FCSN24H8day$Gender2)
+
+
+```
+
+2)FCG vs ADM1
+```{r}
+freq.perc.FG(FCSN24H7dayGroupA133resp$FCG,FCSN24H7dayGroupA133resp$ADM1_NAME)
+freq.perc.FG(FCSN24H8day$FCG,FCSN24H8day$ADM1_NAME)
+```
+
+
+3)FGroups vs FCG
+```{r}
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_VitACat,FCSN24H7dayGroupA133resp$FCG)
+freq.perc.FG(FCSN24H8day$FG_VitACat,FCSN24H8day$FCG)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_ProteinCat,FCSN24H7dayGroupA133resp$FCG)
+freq.perc.FG(FCSN24H8day$FG_ProteinCat,FCSN24H8day$FCG)
+
+freq.perc.FG(FCSN24H7dayGroupA133resp$FG_HIronCat,FCSN24H7dayGroupA133resp$FCG)
+freq.perc.FG(FCSN24H8day$FG_HIronCat,FCSN24H8day$FCG)
+
+
+```
+
+
+
+
+
+
+
+
